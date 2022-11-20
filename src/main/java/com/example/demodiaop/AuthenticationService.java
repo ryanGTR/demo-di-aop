@@ -18,6 +18,18 @@ import java.sql.*;
 public class AuthenticationService {
 
     public boolean isValid(String account, String password, String otp) {
+        // check if account is locked
+        HttpRequest isLockedRequest = HttpRequest.newBuilder().uri(URI.create("https://example.com/fail-counter/is-locked")).GET().build();
+        HttpClient httpClient = HttpClient.newHttpClient();
+        try {
+            HttpResponse<String> isLockedResponse = httpClient.send(isLockedRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (isLockedResponse.statusCode() != 200) {
+                throw new AuthenticationException("check account is locked web api error, account: " + account);
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new AuthenticationException("check account is locked web api error, account: " + account, e);
+        }
+
         // get password from database
         String url = "jdbc:mysql://localhost:3306/test";
         String dbUsername = "sa";
@@ -32,7 +44,7 @@ public class AuthenticationService {
                 passwordFromDb = resultSet.getString("password");
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new AuthenticationException("query database for password error, account: " + account, e);
         }
 
         // hash input password
@@ -50,28 +62,48 @@ public class AuthenticationService {
             }
             hashedPassword = hexString.toString();
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new AuthenticationException("hash password error, account: " + account, e);
         }
 
         // get current otp
         HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create("https://example.com/otp")).GET().build();
-        HttpClient httpClient = HttpClient.newHttpClient();
         String currentOtp;
         try {
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() == 200) {
                 currentOtp = response.body();
             } else {
-                throw new RuntimeException("web api error, account: " + account);
+                throw new AuthenticationException("get current OTP web api error, account: " + account);
             }
         } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
+            throw new AuthenticationException("get current OTP web api error, account: " + account, e);
         }
 
         // compare hashedPassword with passwordFromDb to validate
         if (hashedPassword.equals(passwordFromDb) && currentOtp.equals(otp)) {
+            // reset fail counter when succeeded
+            HttpRequest resetFailCounterRequest = HttpRequest.newBuilder().uri(URI.create("https://example.com/fail-counter/reset")).POST(HttpRequest.BodyPublishers.ofString(account, StandardCharsets.UTF_8)).build();
+            try {
+                HttpResponse<String> resetFailCounterResponse = httpClient.send(resetFailCounterRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                if (resetFailCounterResponse.statusCode() != 200) {
+                    throw new AuthenticationException("reset fail counter web api error, account: " + account);
+                }
+            } catch (IOException | InterruptedException e) {
+                throw new AuthenticationException("reset fail counter web api error, account: " + account, e);
+            }
             return true;
         } else {
+            // increase fail counter when failed
+            HttpRequest addFailCounterRequest = HttpRequest.newBuilder().uri(URI.create("https://example.com/fail-counter/add")).POST(HttpRequest.BodyPublishers.ofString(account, StandardCharsets.UTF_8)).build();
+            try {
+                HttpResponse<String> addFailCounterResponse = httpClient.send(addFailCounterRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                if (addFailCounterResponse.statusCode() != 200) {
+                    throw new AuthenticationException("add fail counter web api error, account: " + account);
+                }
+            } catch (IOException | InterruptedException e) {
+                throw new AuthenticationException("add fail counter web api error, account: " + account, e);
+            }
+
             // notify account of authentication failure on Slack
             Slack slack = Slack.getInstance();
             MethodsClient methodClient = slack.methods("slackToken");
@@ -79,7 +111,7 @@ public class AuthenticationService {
             try {
                 methodClient.chatPostMessage(messageRequest);
             } catch (IOException | SlackApiException e) {
-                throw new RuntimeException(e);
+                throw new AuthenticationException("Slack web api error, account: " + account, e);
             }
             return false;
         }
