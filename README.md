@@ -10,3 +10,13 @@ If you want this project to actually interact with other systems, you may need t
 
 - JDK 11+
 - Maven 3.6+
+
+# Usage
+
+Checkout different branches to practice different stages of refactoring.
+
+- main: original clump of codes
+- protected-with-tests: classes extracted, tests added with mocks
+- decorators: system or operation functionality extracted to decorators
+- di-container: Spring DI container used to manage dependency injection
+- interceptors: generalized system or operation functionality added with interceptor
