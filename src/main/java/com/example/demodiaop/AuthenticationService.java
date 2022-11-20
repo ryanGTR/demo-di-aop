@@ -1,5 +1,10 @@
 package com.example.demodiaop;
 
+import com.slack.api.Slack;
+import com.slack.api.methods.MethodsClient;
+import com.slack.api.methods.SlackApiException;
+import com.slack.api.methods.request.chat.ChatPostMessageRequest;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -67,6 +72,15 @@ public class AuthenticationService {
         if (hashedPassword.equals(passwordFromDb) && currentOtp.equals(otp)) {
             return true;
         } else {
+            // notify account of authentication failure on Slack
+            Slack slack = Slack.getInstance();
+            MethodsClient methodClient = slack.methods("slackToken");
+            ChatPostMessageRequest messageRequest = ChatPostMessageRequest.builder().channel("#random").text("account: " + account + " failed to login.").build();
+            try {
+                methodClient.chatPostMessage(messageRequest);
+            } catch (IOException | SlackApiException e) {
+                throw new RuntimeException(e);
+            }
             return false;
         }
     }
