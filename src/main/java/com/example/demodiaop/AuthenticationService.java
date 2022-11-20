@@ -4,6 +4,8 @@ import com.slack.api.Slack;
 import com.slack.api.methods.MethodsClient;
 import com.slack.api.methods.SlackApiException;
 import com.slack.api.methods.request.chat.ChatPostMessageRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -103,6 +105,22 @@ public class AuthenticationService {
             } catch (IOException | InterruptedException e) {
                 throw new AuthenticationException("add fail counter web api error, account: " + account, e);
             }
+
+            // log fail count
+            HttpRequest getFailCountRequest = HttpRequest.newBuilder().uri(URI.create("https://example.com/fail-counter")).GET().build();
+            int failedCount;
+            try {
+                HttpResponse<String> getFailCountResponse = httpClient.send(getFailCountRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                if (getFailCountResponse.statusCode() != 200) {
+                    throw new AuthenticationException("get fail counter web api error, account: " + account);
+                } else {
+                    failedCount = Integer.parseInt(getFailCountResponse.body());
+                }
+            } catch (IOException | InterruptedException e) {
+                throw new AuthenticationException(e);
+            }
+            Logger logger = LoggerFactory.getLogger("AuthenticationService");
+            logger.info(String.format("account: {} failed times: {}", account, failedCount));
 
             // notify account of authentication failure on Slack
             Slack slack = Slack.getInstance();
