@@ -1,5 +1,10 @@
 package com.example.demodiaop;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -7,7 +12,7 @@ import java.sql.*;
 
 public class AuthenticationService {
 
-    public boolean isValid(String account, String password) {
+    public boolean isValid(String account, String password, String otp) {
         // get password from database
         String url = "jdbc:mysql://localhost:3306/test";
         String dbUsername = "sa";
@@ -43,8 +48,23 @@ public class AuthenticationService {
             throw new RuntimeException(e);
         }
 
+        // get current otp
+        HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create("https://example.com/otp")).GET().build();
+        HttpClient httpClient = HttpClient.newHttpClient();
+        String currentOtp;
+        try {
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() == 200) {
+                currentOtp = response.body();
+            } else {
+                throw new RuntimeException("web api error, account: " + account);
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
         // compare hashedPassword with passwordFromDb to validate
-        if (hashedPassword.equals(passwordFromDb)) {
+        if (hashedPassword.equals(passwordFromDb) && currentOtp.equals(otp)) {
             return true;
         } else {
             return false;
