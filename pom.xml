@@ -15,6 +15,7 @@
 
         <mysql-connector-java.version>8.0.30</mysql-connector-java.version>
         <protobuf-java.version>3.21.9</protobuf-java.version>
+        <junit-jupiter-enging.version>5.9.0</junit-jupiter-enging.version>
     </properties>
 
     <dependencies>
@@ -34,6 +35,13 @@
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
             <version>${protobuf-java.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit-jupiter-enging.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
