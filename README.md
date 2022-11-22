@@ -20,3 +20,14 @@ Checkout different branches to practice different stages of refactoring.
 - decorators: system or operation functionality extracted to decorators
 - di-container: Spring DI container used to manage dependency injection
 - interceptors: generalized system or operation functionality added with interceptor
+
+# Spec
+
+Tom use AuthenticationService
+
+AuthenticationService will
+1. check if account lock or not
+2. check password is correct or not, fail log count +1
+3. check otp is correct or not
+4. log
+5. notify account login fail on slack
